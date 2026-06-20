@@ -1,6 +1,6 @@
 ---
 name: world-cup-predict-skill
-description: World Cup and football betting workflow for Codex. Use when the user sends fixture screenshots or result screenshots and wants match analysis, exact-score predictions, China sports-lottery style single-bet slips, odds/ROI reasoning, bankroll risk control, shop-owner order tables, Markdown record creation, or post-match settlement with returns and profit/loss. Browse for current odds, team news, injuries, recent form, travel fatigue, and public morale signals before making recommendations.
+description: World Cup and football betting workflow for Codex. Use when the user sends fixture screenshots or result screenshots and wants match analysis, exact-score predictions, China sports-lottery style single-bet slips, odds/ROI reasoning, bankroll risk control, shop-owner order tables, Markdown record creation, or post-match settlement with returns and profit/loss. Browse for current odds, team news, injuries, recent form, historical World Cup/team records, club and player form, travel fatigue, and public morale signals before making recommendations.
 ---
 
 # World Cup Predict Skill
@@ -54,20 +54,32 @@ If the screenshot date is unclear, ask for the exact date. If the user says "今
    - 总进球数 odds and availability.
    - Team news, injuries, suspensions, likely lineups, and coach comments.
    - Recent form and scoring profile.
+   - Historical World Cup record, tournament goal profile, and relevant head-to-head results.
+   - Recent competitive national-team matches from World Cup qualifiers, continental tournaments, Nations League, Copa America, AFCON, Asian Cup, friendlies, or other reliable match logs.
+   - Key-player club form, minutes load, goals/assists/xG/xA when available, goalkeeper form, defensive absences, and bench depth.
    - Travel, venue, time-zone, weather, rest-day, and arrival reports.
    - Public morale signals from official accounts, press conferences, reliable sports outlets, and training reports.
 
-3. Separate facts from inference:
+3. Add the historical/player strength layer:
+   - Read `references/historical-strength-model.md` when pre-match analysis needs historical World Cup records, recent non-World-Cup matches, or player/club form.
+   - Use `scripts/worldcup_history_features.py` to collect repeatable World Cup history features when the teams have past World Cup data.
+   - Use `scripts/strength_fusion.py` when enough numeric evidence exists to combine current ratings, recent national-team form, historical World Cup traits, player availability, and tactical matchup into a score distribution.
+   - Treat this layer as a correction to current odds/news, not a replacement for them.
+
+4. Separate facts from inference:
    - Use `可确认...` for confirmed information.
    - Use `公开报道显示...` for sourced reports.
    - Use `我推断...` for analysis.
    - Use `没有可靠公开信息支持...` when a claim cannot be verified.
 
-4. Build predictions from:
+5. Build predictions from:
    - Team strength and tactical matchup.
    - Expected scoring intensity and score distribution.
    - Odds and implied probabilities.
    - Injury and lineup effects.
+   - Historical World Cup attack/defense profile and tournament scoring habits.
+   - Recent national-team performance across competitive matches.
+   - Key-player club form, minutes, availability, and role importance.
    - Travel/rest/fatigue effects.
    - Public morale and motivation.
    - User's budget and risk preference.
@@ -122,7 +134,9 @@ Use Poisson/Dixon-Coles style reasoning:
 - Think in score clusters, not isolated guesses.
 - Link exact scores to total-goals selections.
 - Treat low-score draws like `0:0` and `1:1` carefully; add them only when tactics and odds support them.
-- In national-team tournaments, weigh current availability, rest, travel, and motivation more than old historical form.
+- Let historical scoring records adjust expected goals only within a controlled band unless current squads/coaches strongly overlap with the historical sample.
+- In national-team tournaments, weigh current availability, rest, travel, motivation, and current-player club form more than old historical form.
+- If a team's long-run World Cup profile repeatedly shows above-average goals for, do not ignore it; use it as a small positive attack prior, then verify with current squad quality and recent matches.
 
 ## Slip Construction Rules
 
@@ -187,11 +201,12 @@ Daily Markdown files should include:
 3. `店主下单内容`
 4. `推荐标记`
 5. `综合分析`
-6. `新闻/旅途/精神状态`
-7. `检查记录`
-8. `今日战果`
-9. `今日总结`
-10. `参考信息`
+6. `历史战绩/球员状态`
+7. `新闻/旅途/精神状态`
+8. `检查记录`
+9. `今日战果`
+10. `今日总结`
+11. `参考信息`
 
 Use Markdown tables.
 
@@ -202,6 +217,10 @@ When odds are known, include:
 For `新闻/旅途/精神状态`, use:
 
 `场次 | 近期新闻 | 旅途/休整 | 精神状态判断 | 对比分影响`
+
+For `历史战绩/球员状态`, use:
+
+`场次 | 世界杯历史进球倾向 | 近年国家队战绩 | 关键球员俱乐部状态 | 综合实力修正`
 
 ## Updating Existing Daily Files
 
@@ -244,6 +263,8 @@ If exact-score ROI is consistently poor after several days, reduce the exact-sco
 - State clearly that betting is high variance.
 - Never claim certain profit.
 - Never fabricate team news, injuries, flight data, or mental-state information.
+- Never fabricate historical records, player statistics, or club form. If data cannot be verified, mark it unknown and lower confidence.
+- Do not overfit old head-to-head records when coaches, squads, competition context, or player ages have changed.
 - Use public sources only.
 - Encourage budget control and loss caps.
 - Follow local laws and platform rules.
