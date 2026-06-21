@@ -1,6 +1,6 @@
 ---
 name: world-cup-predict-skill
-description: World Cup and football betting workflow for Codex. Use when the user sends fixture screenshots or result screenshots and wants match analysis, exact-score predictions, China sports-lottery style single-bet slips, odds/ROI reasoning, bankroll risk control, shop-owner order tables, Markdown record creation, or post-match settlement with returns and profit/loss. Browse for current odds, team news, injuries, recent form, historical World Cup/team records, club and player form, travel fatigue, and public morale signals before making recommendations.
+description: World Cup and football betting workflow for Codex. Use when the user sends fixture screenshots or result screenshots and wants match analysis, exact-score predictions, China sports-lottery style single-bet slips, odds/ROI reasoning, bankroll risk control, shop-owner order tables, Markdown record creation, or post-match settlement with returns and profit/loss. Browse for China sports-lottery availability and single-bet status, current odds, team news, injuries, recent form, historical World Cup/team records, club and player form, travel fatigue, and public morale signals before making recommendations.
 ---
 
 # World Cup Predict Skill
@@ -47,7 +47,15 @@ If the screenshot date is unclear, ask for the exact date. If the user says "今
    - Visible win/draw/loss percentages.
    - Visible Codex/odds hints if present.
 
-2. Browse for current information because sports data changes:
+2. Check China sports-lottery availability before choosing bets:
+   - Read `references/lottery-availability-check.md`.
+   - Query official China Sports Lottery / 中国竞彩网 football schedule pages first.
+   - Confirm each fixture's `开售状态` and each market's availability: 胜平负, 让球胜平负, 比分, 总进球数, 半全场胜平负.
+   - Confirm whether each intended market is open for 单关. If only 过关 is open, do not place it in the default single-bet slip.
+   - If official pages are inaccessible, use reliable secondary sources such as 500.com only as a provisional check, then mark the market as `待店主确认`.
+   - Do not recommend a 胜平负 row, even for a strong favorite, unless the fixture is confirmed open for that market and usable as 单关.
+
+3. Browse for current information because sports data changes:
    - China sports-lottery related odds or 500.com style odds when accessible.
    - Correct-score SP odds.
    - 胜平负 / 让球胜平负 availability and whether 单关 is open.
@@ -60,22 +68,23 @@ If the screenshot date is unclear, ask for the exact date. If the user says "今
    - Travel, venue, time-zone, weather, rest-day, and arrival reports.
    - Public morale signals from official accounts, press conferences, reliable sports outlets, and training reports.
 
-3. Add the historical/player strength layer:
+4. Add the historical/player strength layer:
    - Read `references/historical-strength-model.md` when pre-match analysis needs historical World Cup records, recent non-World-Cup matches, or player/club form.
    - Use `scripts/worldcup_history_features.py` to collect repeatable World Cup history features when the teams have past World Cup data.
    - Use `scripts/strength_fusion.py` when enough numeric evidence exists to combine current ratings, recent national-team form, historical World Cup traits, player availability, and tactical matchup into a score distribution.
    - Treat this layer as a correction to current odds/news, not a replacement for them.
 
-4. Separate facts from inference:
+5. Separate facts from inference:
    - Use `可确认...` for confirmed information.
    - Use `公开报道显示...` for sourced reports.
    - Use `我推断...` for analysis.
    - Use `没有可靠公开信息支持...` when a claim cannot be verified.
 
-5. Build predictions from:
+6. Build predictions from:
    - Team strength and tactical matchup.
    - Expected scoring intensity and score distribution.
    - Odds and implied probabilities.
+   - China sports-lottery market availability and single-bet constraints.
    - Injury and lineup effects.
    - Historical World Cup attack/defense profile and tournament scoring habits.
    - Recent national-team performance across competitive matches.
@@ -87,6 +96,18 @@ If the screenshot date is unclear, ask for the exact date. If the user says "今
 ## Risk-Optimized Strategy
 
 Do not optimize for buying many outcomes. Optimize for positive expected value, controlled drawdown, and lower correlation.
+
+### Lottery Availability Gate
+
+Always run this gate before finalizing a shop-owner order:
+
+1. Build a market availability table for every fixture:
+   - `场次 | 比赛 | 开售状态 | 胜平负单关 | 让球胜平负单关 | 比分单关 | 总进球数单关 | 处理`
+2. Treat `开售单关` and `开售单关+过关` as usable for default single-bet slips.
+3. Treat `仅开售过关`, `未开售此游戏`, blank, suspended, hidden, or unclear status as not usable for default single-bet slips.
+4. If the user says the shop owner cannot place a market, immediately remove that market, preserve budget when possible, and rebuild only with confirmed-open single-bet markets.
+5. If no suitable market is confirmed open for a match, skip that match in the shop-owner order and optionally list it under `备选观察`.
+6. Never fill unavailable stake by adding more exact-score bets blindly. Reallocate first to confirmed-open, lower-variance markets that agree with the score model.
 
 ### Expected-Value Gate
 
@@ -144,8 +165,9 @@ Default:
 
 - Every row is `2元` unless the user says otherwise.
 - All bets are single bets unless the user explicitly asks for parlays.
-- If a market is not open for 单关, do not include it in the single-bet shop-owner slip.
+- If a market is not confirmed open for 单关, do not include it in the single-bet shop-owner slip.
 - If the shop owner says a market is unavailable, rebuild the slip with the same budget when possible.
+- Put unavailable but analytically attractive markets in a separate `未开/待确认，不下单` note, not in the order table.
 
 For exact-score bets:
 
@@ -197,22 +219,27 @@ Also write:
 Daily Markdown files should include:
 
 1. `今日总览`
-2. `今日订单`
-3. `店主下单内容`
-4. `推荐标记`
-5. `综合分析`
-6. `历史战绩/球员状态`
-7. `新闻/旅途/精神状态`
-8. `检查记录`
-9. `今日战果`
-10. `今日总结`
-11. `参考信息`
+2. `体彩开售检查`
+3. `今日订单`
+4. `店主下单内容`
+5. `推荐标记`
+6. `综合分析`
+7. `历史战绩/球员状态`
+8. `新闻/旅途/精神状态`
+9. `检查记录`
+10. `今日战果`
+11. `今日总结`
+12. `参考信息`
 
 Use Markdown tables.
 
 When odds are known, include:
 
 `场次 | 比分/玩法 | 投注内容 | 金额 | 参考赔率 | 命中回报`
+
+For `体彩开售检查`, use:
+
+`场次 | 比赛 | 开售状态 | 胜平负单关 | 让球胜平负单关 | 比分单关 | 总进球数单关 | 处理`
 
 For `新闻/旅途/精神状态`, use:
 
@@ -264,6 +291,7 @@ If exact-score ROI is consistently poor after several days, reduce the exact-sco
 - Never claim certain profit.
 - Never fabricate team news, injuries, flight data, or mental-state information.
 - Never fabricate historical records, player statistics, or club form. If data cannot be verified, mark it unknown and lower confidence.
+- Never fabricate China sports-lottery market availability, 单关 status, or odds. If availability cannot be verified, mark `待店主确认` and keep it out of the default shop-owner order.
 - Do not overfit old head-to-head records when coaches, squads, competition context, or player ages have changed.
 - Use public sources only.
 - Encourage budget control and loss caps.
